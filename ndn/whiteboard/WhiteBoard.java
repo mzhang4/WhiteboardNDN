@@ -1,8 +1,6 @@
 package ndn.whiteboard;
 
 import java.io.*;
-import java.awt.*; 
-import javax.swing.*; 
 import java.awt.event.*; 
 import javax.swing.event.*; 
 import java.util.*; 
@@ -17,10 +15,14 @@ import javax.swing.text.ElementIterator;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.io.IOException;
+import java.awt.*;
+import javax.swing.*;
+import org.fife.ui.rtextarea.*;
+import org.fife.ui.rsyntaxtextarea.*;
 
 public class WhiteBoard extends JFrame 
 { 
-  private JTextArea m_jta; 
+  private RSyntaxTextArea m_jta; 
   private String m_copyText;
   private int m_action;
   private int m_offset;
@@ -30,7 +32,8 @@ public class WhiteBoard extends JFrame
   private JMenuItem mcfw = new JMenuItem("CALL");
   private JMenuItem mrea = new JMenuItem("Release");
   private JMenuItem mClear = new JMenuItem("Clear");
-
+  private JMenuItem mCopy = new JMenuItem("Copy-Ctrl+C"); 
+  private JMenuItem mPaste = new JMenuItem("Paste-Ctril+V"); 
 
   class cfwListener implements ActionListener
   {
@@ -41,6 +44,8 @@ public class WhiteBoard extends JFrame
       m_jta.setEditable(true);
       mrea.setEnabled(true);
       mClear.setEnabled(true);
+      mCopy.setEnabled(true);
+      mPaste.setEnabled(true);
       mcfw.setEnabled(false);
       m_changed = 2;
     }
@@ -55,6 +60,8 @@ public class WhiteBoard extends JFrame
       m_jta.setEditable(false);
       mrea.setEnabled(false);
       mClear.setEnabled(false);
+      mCopy.setEnabled(false);
+      mPaste.setEnabled(false);
       mcfw.setEnabled(true);
       m_changed = 3;
     }
@@ -95,6 +102,22 @@ public class WhiteBoard extends JFrame
     public void
     actionPerformed(ActionEvent e) 
     {
+      if (m_editable == true) {
+        m_editable = false;
+        m_jta.setEditable(false);
+        mrea.setEnabled(false);
+        mClear.setEnabled(false);
+        mCopy.setEnabled(false);
+        mPaste.setEnabled(false);
+        mcfw.setEnabled(true);
+        m_changed = 3;
+      }
+
+      try{
+        Thread.sleep(3000);
+      }
+      catch (Exception ex) {}
+
       System.exit(0);
     } 
   }
@@ -105,6 +128,7 @@ public class WhiteBoard extends JFrame
     actionPerformed(ActionEvent e)
     { 
       m_copyText = m_jta.getSelectedText().toString();
+      //m_jta.copy();
     }
   }
 
@@ -115,6 +139,7 @@ public class WhiteBoard extends JFrame
     {
       if (m_copyText != null) {
         m_jta.append(m_copyText);
+        //m_jta.paste();
       }
     }
   }
@@ -144,15 +169,17 @@ public class WhiteBoard extends JFrame
  
   public WhiteBoard() 
   {
-    m_jta = new JTextArea("",40,60); 
-    //m_jta=new RSyntaxTextArea("",40,60); 
-    m_jta.getDocument().addDocumentListener(new MyDocumentListener());    
+    JPanel cp = new JPanel();
+
+    m_jta = new RSyntaxTextArea(60, 80);
     m_jta.setEditable(false);
-    //RTextScrollPane jsp = new RTextScrollPane(m_jta);
-    JScrollPane jsp = new JScrollPane(m_jta); 
+    m_jta.getDocument().addDocumentListener(new MyDocumentListener());    
+
+    m_jta.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
+
     JMenuBar jmb = new JMenuBar();
     JMenu mRight = new JMenu("CFW"); 
-    JMenu mFile = new JMenu("File");
+    JMenu mFile = new JMenu("File"); 
     JMenu mEdit = new JMenu("Edit");
 
     mcfw.addActionListener(new cfwListener());
@@ -177,24 +204,31 @@ public class WhiteBoard extends JFrame
     mFile.add(mExit); 
     mFile.setMnemonic(KeyEvent.VK_F); 
 
-    JMenuItem jmi; 
-    jmi = new JMenuItem("Copy");
-    jmi.addActionListener(new copyListener()); 
-    mEdit.add(jmi); 
+    mCopy.setEnabled(false);
+    mCopy.addActionListener(new copyListener()); 
+    mEdit.add(mCopy); 
 
-    jmi = new JMenuItem("Paste");
-    jmi.addActionListener(new pasteListener()); 
-    mEdit.add(jmi); 
+    mPaste.setEnabled(false);
+    mPaste.addActionListener(new pasteListener()); 
+    mEdit.add(mPaste);
+
+    m_jta.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
+    m_jta.setCodeFoldingEnabled(true);
+    RTextScrollPane sp = new RTextScrollPane(m_jta);
+    cp.add(sp);
+
+    setContentPane(cp);
+    setTitle("CODE DEMO");
+    setDefaultCloseOperation(EXIT_ON_CLOSE);
+    pack();
+    setLocationRelativeTo(null);
 
     jmb.add(mRight);
     jmb.add(mFile); 
     jmb.add(mEdit);
-
-    this.setJMenuBar(jmb);
-
-    this.getContentPane().add(jsp);
-    this.setSize(600,600);
+    this.setJMenuBar(jmb); 
     this.setVisible(true);
+    this.setSize(600,600);
   }
 
   public String
@@ -206,7 +240,6 @@ public class WhiteBoard extends JFrame
   public void
   setText(String content)
   {
-    System.out.println("I dont want except");
     m_jta.setEditable(true);
     m_jta.setText(content);
 

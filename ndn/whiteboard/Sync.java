@@ -55,14 +55,16 @@ public class Sync implements ChronoSync2013.OnInitialized,
 
     System.out.println("The uuid is: " + m_uuid);
 
-    final Name DATA_PREFIX = new Name("/ndn/whiteboard/" + m_uuid);
-    final Name BROADCAST_PREFIX = new Name("/ndn/broadcast/whiteboard");
+    final Name DATA_PREFIX = new Name("/ndn/demo/" + m_uuid);
+    final Name BROADCAST_PREFIX = new Name("/ndn/broadcast/demo");
+    final Name DATA_ALL_PREFIX = new Name("/ndn/demo/data/" + m_uuid);
 
     int session = (int)Math.round(System.currentTimeMillis() / 1000.0);
 
     // Register Application prefix
     try {
       m_face.registerPrefix(DATA_PREFIX, this, this);
+      m_face.registerPrefix(DATA_ALL_PREFIX, this, this);
     }
     catch (Exception e) {
       System.out.println("Exception: " + e.getMessage());
@@ -121,20 +123,24 @@ public class Sync implements ChronoSync2013.OnInitialized,
     String content = data.getContent().toString();
     String [] s = data.getName().toUri().split("/");
 
-    if (s[s.length-1].equals("0"))
-    {
-      return;
-    }
-    else if (content.equals("CALL")) 
-    {
-      m_whiteBoard.setRight(true);
-    }
-    else if (content.equals("REALSE")) 
-    {
-      m_whiteBoard.setRight(false);
-    }
-    else
+    if (data.getName().toUri().contains("/data/")) {
       m_whiteBoard.setText(content);
+    } else {
+      if (s[s.length-1].equals("0"))
+      {
+        return;
+      }
+      else if (content.equals("CALL")) 
+      {
+        m_whiteBoard.setRight(true);
+      }
+      else if (content.equals("REALSE")) 
+      {
+        m_whiteBoard.setRight(false);
+      }
+      else
+        m_whiteBoard.setText(content);
+    }
   }
 
   public void
@@ -146,19 +152,24 @@ public class Sync implements ChronoSync2013.OnInitialized,
   public void
   onInterest(Name prefix, Interest interest, Transport transport, long registeredPrefixId)
   {
-    // Create response Data
-    Data data = new Data(interest.getName());
+    if (prefix.toUri().contains("/data/")) {
+      Data data = new Data(interest.getName().appendSequenceNumber(m_chronoSync.getSequenceNo()));
+      data.setContent(new Blob(m_whiteBoard.getText()));
+    } else {
+      // Create response Data
+      Data data = new Data(interest.getName());
 
-    data.setContent(new Blob(m_content));
+      data.setContent(new Blob(m_content));
 
-    Blob encodedData = data.wireEncode();
+      Blob encodedData = data.wireEncode();
 
-    // Send Data
-    try {
-      //System.out.println("Sending Data for " + interest.getName().toUri());
-      transport.send(encodedData.buf());
-    } catch (IOException e) {
-      //System.out.println(e.getMessage());
+      // Send Data
+      try {
+        //System.out.println("Sending Data for " + interest.getName().toUri());
+        transport.send(encodedData.buf());
+      } catch (IOException e) {
+        //System.out.println(e.getMessage());
+      }
     }
   }
 
@@ -190,7 +201,13 @@ public class Sync implements ChronoSync2013.OnInitialized,
 
       if (m_lastSequenceNo.get(id) == null && state.getSequenceNo() > 0) {
         m_whiteBoard.setRight(true);
-      } 
+
+        if (m_chronoSync.getSequenceNo() == 0) {
+          Name name =new Name("/ndn/demo/data/" + m_uuid);
+          Interest interest = new Interest(name);
+          break;
+        }
+      }
 
       Name name = new Name(state.getDataPrefix() + "/" + state.getSequenceNo());
 
